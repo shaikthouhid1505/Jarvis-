@@ -1,1 +1,97 @@
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.label import Label
+from kivy.clock import Clock
+
+# Try importing Android-specific Java bridges (works when compiled for Android via Buildozer)
+try:
+    from jnius import autoclass
+    from jnius import cast
+    
+    # Android Java classes
+    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+    Context = autoclass('android.content.Context')
+    Intent = autoclass('android.content.Intent')
+    ComponentName = autoclass('android.content.ComponentName')
+    DevicePolicyManager = autoclass('android.app.DevicePolicyManager')
+    WindowManager = autoclass('android.view.WindowManager$LayoutParams')
+    
+    IS_ANDROID = True
+except Exception:
+    IS_ANDROID = False
+
+class AIAssistantApp(App):
+    def build(self):
+        # Configure window flags for Android if running on device
+        if IS_ANDROID:
+            try:
+                activity = PythonActivity.mActivity
+                window = activity.getWindow()
+                # Wake screen up and show over lockguard
+                window.addFlags(WindowManager.FLAG_KEEP_SCREEN_ON)
+                window.addFlags(WindowManager.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON)
+            except Exception as e:
+                print(f"Error setting window flags: {e}")
+
+        # Simple UI Layout
+        layout = BoxLayout(orientation='vertical', padding=30, spacing=20)
+        
+        self.status_label = Label(
+            text="AI Assistant Ready\nTap below to test actions",
+            halign='center',
+            font_size=20
+        )
+        layout.add_widget(self.status_label)
+        
+        # Button to Request Admin Permission
+        admin_btn = Button(text="1. Enable Device Admin (Required for Lock)", font_size=16)
+        admin_btn.bind(on_press=self.request_device_admin)
+        layout.add_widget(admin_btn)
+        
+        # Button to Lock Device
+        lock_btn = Button(text="2. Lock Phone Screen", font_size=16, background_color=(0.8, 0.2, 0.2, 1))
+        lock_btn.bind(on_press=self.lock_device)
+        layout.add_widget(lock_btn)
+        
+        return layout
+
+    def request_device_admin(self, instance):
+        if not IS_ANDROID:
+            self.status_label.text = "Admin request only works on an Android device."
+            return
+
+        try:
+            activity = PythonActivity.mActivity
+            compName = ComponentName(activity, activity.getPackageName() + ".AppDeviceAdminReceiver")
+            
+            intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
+            intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, compName)
+            intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN_ADD_EXPLANATION, "Required for AI Assistant to lock your screen.")
+            
+            activity.startActivity(intent)
+            self.status_label.text = "Please enable Device Administrator in settings."
+        except Exception as e:
+            self.status_label.text = f"Failed to request admin: {str(e)}"
+
+    def lock_device(self, instance):
+        if not IS_ANDROID:
+            self.status_label.text = "Locking only works on an Android device."
+            return
+
+        try:
+            activity = PythonActivity.mActivity
+            device_policy_manager = cast(DevicePolicyManager, activity.getSystemService(Context.DEVICE_POLICY_SERVICE))
+            compName = ComponentName(activity, activity.getPackageName() + ".AppDeviceAdminReceiver")
+            
+            if device_policy_manager.isAdminActive(compName):
+                device_policy_manager.lockNow()
+                self.status_label.text = "Device locked successfully!"
+            else:
+                self.status_label.text = "Device Admin is not active. Enable it first!"
+        except Exception as e:
+            self.status_label.text = f"Error locking device: {str(e)}"
+
+if __name__ == '__main__':
+    AIAssistantApp().run()
 
