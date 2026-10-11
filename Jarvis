@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import scrolledtext, messagebox
+from tkinter import scrolledtext
 import datetime
 import json
 import os
@@ -9,6 +9,17 @@ import threading
 
 APP_NAME = "LIFE AI - Personal Assistant"
 MEMORY_FILE = "life_ai_memory.json"
+
+# ---------- THEME COLORS (Modern Dark) ----------
+BG_DARK = "#121214"
+SURFACE_DARK = "#1a1a1e"
+PANEL_DARK = "#222228"
+TEXT_PRIMARY = "#f4f4f5"
+TEXT_SECONDARY = "#a1a1aa"
+ACCENT_COLOR = "#6366f1"  # Indigo accent
+ACCENT_HOVER = "#4f46e5"
+USER_BUBBLE = "#27272a"
+AI_BUBBLE = "#1e1e24"
 
 # ---------- MEMORY ----------
 def load_memory():
@@ -20,14 +31,11 @@ def load_memory():
             pass
     return {"notes": [], "tasks": [], "reminders": []}
 
-
 memory = load_memory()
-
 
 def save_memory():
     with open(MEMORY_FILE, "w", encoding="utf-8") as f:
         json.dump(memory, f, indent=2, ensure_ascii=False)
-
 
 # ---------- SAFE CALCULATOR ----------
 OPS = {
@@ -40,7 +48,6 @@ OPS = {
     ast.USub: operator.neg,
     ast.UAdd: operator.pos,
 }
-
 
 def calculate(node):
     if isinstance(node, ast.Expression):
@@ -66,11 +73,9 @@ def calculate(node):
 
     raise ValueError("Unsupported calculation")
 
-
 def safe_calculate(expression):
     tree = ast.parse(expression, mode="eval")
     return calculate(tree)
-
 
 # ---------- ASSISTANT BRAIN ----------
 def assistant_reply(text):
@@ -172,43 +177,66 @@ def assistant_reply(text):
         "Connect an AI model API to enable intelligent conversations."
     )
 
-
 # ---------- GRAPHICAL INTERFACE ----------
 root = tk.Tk()
 root.title(APP_NAME)
-root.geometry("650x720")
-root.minsize(420, 520)
+root.geometry("680x760")
+root.minsize(450, 550)
+root.configure(bg=BG_DARK)
+
+# Header Frame
+header_frame = tk.Frame(root, bg=BG_DARK, pady=16)
+header_frame.pack(fill=tk.X, padx=20)
 
 header = tk.Label(
-    root,
-    text="LIFE AI",
-    font=("Arial", 24, "bold"),
-    pady=12
+    header_frame,
+    text="✨ LIFE AI",
+    font=("Segoe UI", 20, "bold"),
+    fg=TEXT_PRIMARY,
+    bg=BG_DARK
 )
-header.pack()
+header.pack(anchor="w")
 
 subtitle = tk.Label(
-    root,
-    text="Your personal digital assistant",
-    font=("Arial", 10)
+    header_frame,
+    text="Your intelligent personal workspace",
+    font=("Segoe UI", 10),
+    fg=TEXT_SECONDARY,
+    bg=BG_DARK
 )
-subtitle.pack()
+subtitle.pack(anchor="w", pady=(2, 0))
+
+# Chat Container Frame
+chat_container = tk.Frame(root, bg=SURFACE_DARK, highlightbackground=PANEL_DARK, highlightthickness=1)
+chat_container.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 16))
 
 chat = scrolledtext.ScrolledText(
-    root,
+    chat_container,
     wrap=tk.WORD,
-    font=("Arial", 11),
+    font=("Segoe UI", 11),
+    bg=SURFACE_DARK,
+    fg=TEXT_PRIMARY,
+    insertbackground=TEXT_PRIMARY,
+    borderwidth=0,
+    highlightthickness=0,
+    padx=16,
+    pady=16,
     state=tk.DISABLED
 )
-chat.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
+chat.pack(fill=tk.BOTH, expand=True)
 
+# Configure text tags for styled bubbles
+chat.tag_config("user", foreground="#818cf8", font=("Segoe UI", 11, "bold"))
+chat.tag_config("ai", foreground="#34d399", font=("Segoe UI", 11, "bold"))
+chat.tag_config("body", foreground=TEXT_PRIMARY, font=("Segoe UI", 11))
 
 def display_message(sender, message):
     chat.configure(state=tk.NORMAL)
-    chat.insert(tk.END, f"{sender}: {message}\n\n")
+    tag = "user" if sender == "You" else "ai"
+    chat.insert(tk.END, f"{sender}\n", tag)
+    chat.insert(tk.END, f"{message}\n\n", "body")
     chat.configure(state=tk.DISABLED)
     chat.see(tk.END)
-
 
 def send_message(event=None):
     text = entry.get().strip()
@@ -224,21 +252,37 @@ def send_message(event=None):
 
     threading.Thread(target=process, daemon=True).start()
 
+# Input Bar Frame
+entry_frame = tk.Frame(root, bg=PANEL_DARK, padx=12, pady=10)
+entry_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
 
-entry_frame = tk.Frame(root)
-entry_frame.pack(fill=tk.X, padx=12, pady=(0, 12))
-
-entry = tk.Entry(entry_frame, font=("Arial", 12))
-entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=8)
+entry = tk.Entry(
+    entry_frame,
+    font=("Segoe UI", 12),
+    bg=PANEL_DARK,
+    fg=TEXT_PRIMARY,
+    insertbackground=TEXT_PRIMARY,
+    borderwidth=0,
+    highlightthickness=0
+)
+entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipdy=6, padx=(4, 12))
 entry.bind("<Return>", send_message)
 
 send_button = tk.Button(
     entry_frame,
-    text="Send",
+    text="Send ➔",
+    font=("Segoe UI", 10, "bold"),
+    bg=ACCENT_COLOR,
+    fg="#ffffff",
+    activebackground=ACCENT_HOVER,
+    activeforeground="#ffffff",
+    relief=tk.FLAT,
+    cursor="hand2",
     command=send_message,
-    padx=16
+    padx=16,
+    pady=6
 )
-send_button.pack(side=tk.RIGHT, padx=(8, 0))
+send_button.pack(side=tk.RIGHT)
 
 display_message(
     "LIFE AI",
